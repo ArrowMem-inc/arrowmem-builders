@@ -64,11 +64,11 @@ A figure in any of these belongs to its publisher. Read the source, not this lis
 ## Tests
 
 ```sh
-node --test src/guard.test.js src/window-sizing.test.js
+node --test src/builders.test.js src/guard.test.js src/window-sizing.test.js
 ```
 
-`builders.js` and `drawings.js` have no test here yet: their tests need a rules table, and the
-public one will be an invented table whose numbers are obviously not span data.
+`builders.test.js` runs the deck engine and the drawings on an invented table built inside the
+test. Its numbers are deliberately not span data; never build from them.
 
 ## Licence
 
