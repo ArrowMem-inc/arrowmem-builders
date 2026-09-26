@@ -1,7 +1,7 @@
 # ArrowMem Builders
 
 Small, dependency-free JavaScript engines that turn a homeowner's answers into a materials list,
-a drawing, a window order and a safer chat box. Each file runs in the browser as a plain script
+a drawing, a window order and a chat box that can ask first. Each file runs in the browser as a plain script
 and in Node for its tests. No build step, no package manager, no network calls of their own.
 
 ## The engines
@@ -45,8 +45,9 @@ Builders.load({ rules: "/data/deck-rules.json", snow: "/data/snow.json" })
   .then(() => Builders.setDefaultLocation("A location in your snow table"));
 ```
 
-`window-sizing.js` carries four figures from one article of the Ontario Building Code, each cited
-beside the check that uses it. Outside Ontario, check your own code before relying on it.
+**`window-sizing.js` checks against Ontario's figures.** It carries four figures from one article of
+the Ontario Building Code, each cited beside the check that uses it. Outside Ontario these checks are
+wrong until you replace them with your own jurisdiction's figures.
 
 ## Sources
 
@@ -72,4 +73,5 @@ test. Its numbers are deliberately not span data; never build from them.
 
 ## Licence
 
-Apache License 2.0; see `LICENSE` and `NOTICE`.
+Everything in this repository is under the Apache License 2.0 unless a file says otherwise;
+see `LICENSE` and `NOTICE`.

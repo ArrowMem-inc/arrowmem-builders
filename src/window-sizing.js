@@ -1,6 +1,8 @@
 // Copyright 2026 ArrowMem Inc.
 // SPDX-License-Identifier: Apache-2.0
-/* Window sizing: measured opening, maker allowances held in writing, Ontario bedroom escape checks
+/* JURISDICTION: the bedroom checks below use ONTARIO's figures (Ontario Building Code 9.9.10.1).
+   Outside Ontario they are wrong until replaced with the local code's figures.
+   Window sizing: measured opening, maker allowances held in writing, Ontario bedroom escape checks
    and the install materials count. Pure functions, no DOM, no network. The page passes its own
    translate function T(template, vars); without one the English templates are filled in as is.
    Sources: WINDOW_SOURCES.md (makers' measuring and installation guides; Ontario Building Code
