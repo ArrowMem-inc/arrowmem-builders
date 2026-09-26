@@ -1,7 +1,9 @@
 // Copyright 2026 ArrowMem Inc.
 // SPDX-License-Identifier: Apache-2.0
 // Dimensioned SVG drawings for the builder. Pure strings, no library, no DOM.
-// BuilderDrawings.render(kind, answers, plan) -> { plan_svg, elevation_svg }
+// BuilderDrawings.render(kind, answers, plan, lang, opts) -> { plan_svg, elevation_svg }
+// opts.finished: the built look only (decking, guards, stairs, skirt, siding, roof), no joists,
+// beams, posts, footings or bracing. The hot tub zone still shows: it is a safety instruction.
 // Deck draws from Builders' plan field; shed and wall from their answers. Colours follow currentColor.
 (function (root) {
   var W = 640, PAD = 48;
@@ -20,13 +22,20 @@
   function posts(width, sp) { var n = Math.ceil(width / sp) + 1, out = []; for (var i = 0; i < n; i++) out.push(width * i / (n - 1)); return out; }
 
   // Plan view: house along the top, joists run down (out from the house), beams across.
-  function deckPlan(lv, fr) {
+  function deckPlan(lv, fr, fin) {
     var s = Math.min((W - 2 * PAD) / lv.width, 260 / lv.length), x0 = PAD, y0 = PAD + 10, w = lv.width * s, h = lv.length * s, b = '';
     if (lv.attached) b += L(x0 - 20, y0, x0 + w + 20, y0, 4) + T(x0 + w / 2, y0 - 8, fr ? 'Maison' : 'House');
     var sp = lv.joist.spacing / 12;
-    for (var x = 0; x <= lv.width + 1e-6; x += sp) b += L(x0 + x * s, y0, x0 + x * s, y0 + h, 0.5);
+    if (fin) {
+      b += '<rect x="' + x0.toFixed(1) + '" y="' + y0.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) + '" fill="currentColor" fill-opacity="0.07" stroke="none"/>';
+      for (var yb = 5.5 / 12; yb < lv.length - 1e-6; yb += 5.75 / 12) b += L(x0, y0 + yb * s, x0 + w, y0 + yb * s, 0.4); // 5-1/2 in boards, 1/4 in gap
+      if (lv.guard) { // guard on the open sides, open where the stairs meet the deck
+        var gap = lv.stairs ? 2 * s : 0, cx = x0 + w / 2;
+        b += '<path d="M' + x0 + ' ' + y0 + ' V' + (y0 + h) + ' H' + (cx - gap) + ' M' + (cx + gap) + ' ' + (y0 + h) + ' H' + (x0 + w) + ' V' + y0 + (lv.attached ? '' : ' H' + x0) + '" stroke-width="4"/>';
+      }
+    } else for (var x = 0; x <= lv.width + 1e-6; x += sp) b += L(x0 + x * s, y0, x0 + x * s, y0 + h, 0.5);
     b += R(x0, y0, w, h, false, 1.5);
-    lv.beams.forEach(function (bm) {
+    if (!fin) lv.beams.forEach(function (bm) {
       var y = y0 + bm.at_ft * s;
       b += L(x0, y, x0 + w, y, 3);
       posts(lv.width, lv.post_spacing).forEach(function (p) { b += R(x0 + p * s - 4, y - 4, 8, 8, true); });
@@ -35,13 +44,13 @@
     if (lv.stairs) { var sw = 4 * s, sr = (lv.stairs.risers - 1) * lv.stairs.run_in / 12 * s; b += R(x0 + w / 2 - sw / 2, y0 + h, sw, sr, false, 1) + T(x0 + w / 2, y0 + h + sr / 2 + 4, fr ? 'Escalier' : 'Stairs'); }
     b += dimH(x0, x0 + w, y0 + h + (lv.stairs ? (lv.stairs.risers - 1) * lv.stairs.run_in / 12 * s : 0) + 24, ft(lv.width));
     b += dimV(x0 + w + 30, y0, y0 + h, ft(lv.length));
-    var key = lv.joist.size + (fr ? ' aux ' : ' at ') + lv.joist.spacing + (fr ? ' po, poutre ' : ' in, beam ') + lv.beams.map(function (x) { return x.size; }).join(' / ') + (fr ? ', poteaux 6x6' : ', 6x6 posts');
+    var key = fin ? (fr ? 'Vue finie : platelage, garde-corps et escalier' : 'Finished view: decking, guards and stairs') : lv.joist.size + (fr ? ' aux ' : ' at ') + lv.joist.spacing + (fr ? ' po, poutre ' : ' in, beam ') + lv.beams.map(function (x) { return x.size; }).join(' / ') + (fr ? ', poteaux 6x6' : ', 6x6 posts');
     var H = y0 + h + (lv.stairs ? (lv.stairs.risers - 1) * lv.stairs.run_in / 12 * s : 0) + 60;
     return svg(H, b + T(PAD, H - 10, key, 'start'), (fr ? 'Plan de la terrasse ' : 'Deck plan ') + ft(lv.width) + ' x ' + ft(lv.length));
   }
 
   // Side elevation: looking along the house. Ground, posts to footings, guard, stairs.
-  function deckElev(lv, fr) {
+  function deckElev(lv, fr, fin) {
     var hFt = lv.height / 12, frost = lv.height <= 24 && !lv.attached ? 0.5 : 4, g = lv.guard ? 3.5 : 0;
     var run = lv.stairs ? (lv.stairs.risers - 1) * lv.stairs.run_in / 12 : 0;
     var s = Math.min((W - 2 * PAD) / (lv.length + run), 220 / (hFt + g + frost));
@@ -49,23 +58,32 @@
     b += L(PAD / 2, gy, W - PAD / 2, gy, 1.5) + T(W - PAD / 2, gy + 14, fr ? 'Sol' : 'Grade', 'end');
     if (lv.attached) b += L(x0, PAD / 2, x0, gy, 4);
     b += R(x0, dy - 6, len, 6, false, 1.5);
-    lv.beams.forEach(function (bm) {
+    if (fin) {
+      b += '<rect x="' + x0.toFixed(1) + '" y="' + dy.toFixed(1) + '" width="' + len.toFixed(1) + '" height="' + (gy - dy).toFixed(1) + '" fill="currentColor" fill-opacity="0.1" stroke-width="1"/>';
+      for (var sx = 0.5; sx < lv.length; sx += 0.5) b += L(x0 + sx * s, dy, x0 + sx * s, gy, 0.3); // skirt boards
+    }
+    if (!fin) lv.beams.forEach(function (bm) {
       var x = x0 + bm.at_ft * s;
       b += R(x - 3, dy, 6, gy - dy, true);
       b += R(x - 6, gy, 12, frost * s, false, 1).replace('/>', ' stroke-dasharray="4 3"/>');
     });
-    if (lv.guard) { b += L(x0, dy - 6 - 3.5 * s, x0 + len, dy - 6 - 3.5 * s, 1.5); for (var x = 0; x <= lv.length + 1e-6; x += 4) b += L(x0 + x * s, dy - 6, x0 + x * s, dy - 6 - 3.5 * s, 1); b += dimV(x0 + len + 16, dy - 6 - 3.5 * s, dy - 6, '42 in'); }
+    if (lv.guard) { b += L(x0, dy - 6 - 3.5 * s, x0 + len, dy - 6 - 3.5 * s, 1.5); for (var x = 0; x <= lv.length + 1e-6; x += 4) b += L(x0 + x * s, dy - 6, x0 + x * s, dy - 6 - 3.5 * s, 1); if (fin) for (var bx = 5 / 12; bx < lv.length; bx += 5 / 12) b += L(x0 + bx * s, dy - 6, x0 + bx * s, dy - 6 - 3.5 * s, 0.4); b += dimV(x0 + len + 16, dy - 6 - 3.5 * s, dy - 6, '42 in'); }
     if (lv.stairs) b += L(x0 + len, dy, x0 + len + run * s, gy, 2);
     b += dimV(x0 - 20, dy, gy, lv.height + ' in');
-    b += dimH(x0, x0 + len, gy + frost * s + 18, ft(lv.length));
-    return svg(gy + frost * s + 30, b, (fr ? 'Élévation, hauteur ' : 'Elevation, height ') + lv.height + ' in');
+    b += dimH(x0, x0 + len, gy + (fin ? 0 : frost * s) + 18, ft(lv.length));
+    return svg(gy + (fin ? 0 : frost * s) + 30, b, (fr ? 'Élévation, hauteur ' : 'Elevation, height ') + lv.height + ' in');
   }
 
-  function shed(a, fr) {
+  function shed(a, fr, fin) {
     var l = a.length || 12, w = a.width || 10, wallH = 8, rise = w / 2 * 4 / 12; // 4 in 12 pitch, drawing only
     var s = Math.min((W - 2 * PAD) / w, 220 / (wallH + rise)), gy = PAD + (wallH + rise) * s, x0 = PAD, b = '';
     b += L(PAD / 2, gy, W - PAD / 2, gy, 1.5);
     b += R(x0, gy - wallH * s, w * s, wallH * s, false, 1.5) + '<polyline points="' + [x0, gy - wallH * s, x0 + w * s / 2, gy - (wallH + rise) * s, x0 + w * s, gy - wallH * s].join(' ') + '" stroke-width="1.5"/>';
+    if (fin) {
+      for (var yy = 0.5; yy < wallH; yy += 0.5) b += L(x0, gy - yy * s, x0 + w * s, gy - yy * s, 0.3); // lap siding
+      b += '<polygon points="' + [x0 - 6, gy - wallH * s, x0 + w * s / 2, gy - (wallH + rise) * s - 4, x0 + w * s + 6, gy - wallH * s].join(' ') + '" fill="currentColor" fill-opacity="0.25" stroke-width="1.5"/>';
+      b += '<rect x="' + (x0 + w * s / 2 - 1.5 * s).toFixed(1) + '" y="' + (gy - 6.5 * s).toFixed(1) + '" width="' + (3 * s).toFixed(1) + '" height="' + (6.5 * s).toFixed(1) + '" fill="#fff" stroke-width="2.5"/>';
+    }
     b += R(x0 + w * s / 2 - 1.5 * s, gy - 6.5 * s, 3 * s, 6.5 * s, false, 1);
     b += dimH(x0, x0 + w * s, gy + 20, ft(w)) + dimV(x0 - 16, gy - wallH * s, gy, ft(wallH));
     return {
@@ -84,14 +102,14 @@
     return { plan_svg: '', elevation_svg: e };
   }
 
-  function render(kind, answers, plan, lang) {
-    var fr = lang === 'fr';
-    if (kind === 'shed') { return shed(answers || {}, fr); }
+  function render(kind, answers, plan, lang, opts) {
+    var fr = lang === 'fr', fin = !!(opts && opts.finished);
+    if (kind === 'shed') { return shed(answers || {}, fr, fin); }
     if (kind === 'wall') return wall(answers || {}, fr);
     if (!plan || !plan.levels) return { plan_svg: '', elevation_svg: '' };
     return {
-      plan_svg: plan.levels.map(function (lv) { return deckPlan(lv, fr); }).join(''),
-      elevation_svg: plan.levels.map(function (lv) { return deckElev(lv, fr); }).join('')
+      plan_svg: plan.levels.map(function (lv) { return deckPlan(lv, fr, fin); }).join(''),
+      elevation_svg: plan.levels.map(function (lv) { return deckElev(lv, fr, fin); }).join('')
     };
   }
 
