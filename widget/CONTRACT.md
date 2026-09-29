@@ -14,8 +14,16 @@ One classic script tag, wherever the widget should appear on the page:
 
 ```html
 <div data-arrowmem-widget></div>
-<script src="https://widget.example.com/embed.js" async></script>
+<script src="https://widget.example.com/embed.v2.js" integrity="sha384-..." crossorigin="anonymous" async></script>
 ```
+
+`integrity` pins the exact bytes of the loader the site owner pasted: if the served file ever
+differs, the browser refuses to run it rather than run something else. `crossorigin="anonymous"`
+is required for that check on a cross-origin script, and is why the loader's own response carries
+`Access-Control-Allow-Origin` for a listed origin (see `embedOrigins` below). The hash is printed
+by the hosting platform from the file it actually serves (in the platform's store repository,
+`scripts/embed-snippet.js`), never typed by hand; this repository does not ship a hash because
+its `embed.js` is not the served file.
 
 It must be a classic script, not `type="module"`: the loader reads its own address from
 `document.currentScript.src`, and `document.currentScript` is always `null` inside a module
@@ -51,20 +59,25 @@ open, not only its payment step. Reviewed against the deployed loader and framed
    by writing the visitor's own project data into it directly, HTML-escaped first. No network
    request follows and no third-party origin is loaded, only the visitor's own data reflected
    back into a window they already caused to open.
-3. **A reply link.** Text the assistant returns is HTML-escaped, then any `http(s)://` URL found
-   in it is turned into a link that opens with `rel="noopener" target="_blank"`. Unlike the two
-   cases above, this one is not restricted to the platform's own origin by anything in this
-   loader's contract or in the sandbox flags: the matching is a plain URL pattern, and the
-   platform's own test fixture for it exercises an external domain. Whatever narrows which URLs
-   a reply can actually contain, if anything does, is a property of the assistant's own backend,
-   which is closed and out of this repository; it is not enforced by the code this contract
-   describes, and a widget host relying on it should verify that separately rather than take it
-   on faith from this document.
+3. **A reply link.** Text the assistant returns is HTML-escaped first, then a URL found in it
+   becomes a link (opening with `rel="noopener" target="_blank"`) only when its origin is one of
+   the platform's own (the page's own origin, the store host, the widget host) or it is `https:`
+   on a short, fixed list of manufacturer hosts the platform holds in its framed page's code. Any
+   other URL, including a look-alike host, stays plain escaped text, one tap away from nothing.
+   The URL is read from the still-escaped text, so an HTML entity inside the host part fails the
+   match and stays text. The list and the check are the platform's closed code, not this
+   loader's; the platform tests that a foreign URL never renders as a link.
 
-**The one top-level navigation this contract grants** belongs to a pay control on a different
-framed page (also served on the same widget host): on a real click it checks whether it is
-already the top window and, when it is not, sets `window.top.location.href` to the payment page,
-with a plain `target="_top"` link as a fallback if that is blocked or throws. Its own comment states why: the
+The print view in case 2 escapes every value it writes, quantities included.
+
+**The one kind of top-level navigation this contract grants** belongs to the pay controls on the
+framed pages (the checkout pay button, and the pay button on a priced order's own page, both on
+the same widget host): on a real click each checks whether it is already the top window and, when
+it is not, sets `window.top.location.href` to the payment page, with a plain `target="_top"` link
+as a fallback if that is blocked or throws. After payment the provider returns the customer to
+the platform's own order page, or, when the site owner has set one, to a page on their own listed
+origin (an exact `https` path, validated against `embedOrigins` the same way), carrying only the
+order id or a cancelled flag. Its own comment states why: the
 payment provider refuses to be framed, so paying has to open in the whole top window, and the
 sandbox allows that only on a real click. This is exactly what
 `allow-top-navigation-by-user-activation` grants and is the only path in this contract that uses
@@ -74,11 +87,9 @@ assume it from this document.
 
 The condition this flag combination is accepted under: every window the framed page opens either
 loads a URL from the platform's own fee endpoint (case 1), or is filled only with the visitor's
-own already-escaped data and no URL at all (case 2); the one top-level navigation it can trigger
-follows a real click and only ever targets the payment page. Case 3 is a distinct, narrower risk
-(an open-redirect-shaped link, mitigated by `rel="noopener"` and by the text being escaped before
-any URL is extracted from it, but not by an origin allow-list) and should be judged on those
-terms, not folded into the same "safe because it's one of the accepted cases" condition. Any new
+own already-escaped data and no URL at all (case 2), or is a reply link limited to the
+platform's own origins and its fixed manufacturer list (case 3); the one kind of top-level
+navigation it can trigger follows a real click and only ever targets the payment page. Any new
 `window.open` call, or any change to what a reply link or the top-navigation target can point to,
 re-runs this review before it ships.
 
@@ -156,4 +167,13 @@ own closed code.
 
 ```sh
 node --test widget/embed.test.js
+```
+
+A parity test compares this `embed.js` with the platform's served loader on the three things
+that must agree: the sandbox string, the height cap, and the origin check. The served file is
+not in this repository, so the test reads it from the path in `SERVED_EMBED` and is skipped,
+with that reason, when the variable is unset:
+
+```sh
+SERVED_EMBED=/path/to/embed.v2.js node --test widget/embed.test.js
 ```

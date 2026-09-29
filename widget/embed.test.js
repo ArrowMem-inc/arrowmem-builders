@@ -34,3 +34,15 @@ test("a non-object message body is ignored", () => {
   assert.strictEqual(W.heightFromMessage("https://widget.example.com", "https://widget.example.com", null), null);
   assert.strictEqual(W.heightFromMessage("https://widget.example.com", "https://widget.example.com", "742"), null);
 });
+
+// Parity with the platform's served loader (CONTRACT.md, Tests): the served file is not in this
+// repository, so its path comes from SERVED_EMBED; unset, the test is skipped and says why.
+const served = process.env.SERVED_EMBED;
+test("the open loader and the served loader agree on sandbox, cap and origin check", { skip: served ? false : "SERVED_EMBED not set, no served loader to compare" }, () => {
+  const src = require("node:fs").readFileSync(served, "utf8");
+  assert.strictEqual((src.match(/setAttribute\("sandbox", "([^"]+)"\)/) || [])[1], W.SANDBOX, "sandbox string");
+  assert.strictEqual(Number((src.match(/h > (\d+)\) return;/) || [])[1]), W.CAP, "height cap");
+  assert.match(src, /if \(e\.origin !== origin \|\| !e\.data \|\| typeof e\.data !== "object"\) return;/, "origin check first, then an object payload");
+  assert.match(src, /!Number\.isInteger\(h\) \|\| h <= 0/, "integer, above zero");
+  assert.match(src, /f\.contentWindow === e\.source/, "only the frame it created");
+});
