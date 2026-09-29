@@ -13,6 +13,10 @@ test("luhnValid", () => {
 test("detectCard", () => {
   assert.strictEqual(G.detectCard("my card is 4242 4242 4242 4242 please"), true);
   assert.strictEqual(G.detectCard("4242-4242-4242-4242"), true);
+  // fullwidth digits (U+FF10..FF19), built from a synthetic test number so the file stays ASCII
+  const wide = "4242 4242 4242 4242".replace(/\d/g, d => String.fromCharCode(0xFF10 + Number(d)));
+  assert.notStrictEqual(wide, "4242 4242 4242 4242");
+  assert.strictEqual(G.detectCard("card " + wide), true);
   assert.strictEqual(G.detectCard("4242 4242 4242 4241"), false);
   assert.strictEqual(G.detectCard("I need help with my deck please"), false);
 });

@@ -33,8 +33,10 @@ function luhnValid(digits) {
 
 // Card (PG3): 13-19 digits, spaces or dashes allowed, Luhn-valid.
 const CARD_CANDIDATE = /\b(?:\d[ -]?){12,18}\d\b/g;
+// Normalise fullwidth and other compatibility digit forms to ASCII before the candidate scan,
+// or a card number typed in fullwidth form bypasses the \d-only regex entirely.
 function detectCard(text) {
-  const matches = text.match(CARD_CANDIDATE);
+  const matches = String(text || "").normalize("NFKC").match(CARD_CANDIDATE);
   if (!matches) return false;
   for (const raw of matches) {
     const digits = raw.replace(/[ -]/g, "");
