@@ -49,6 +49,22 @@ Builders.load({ rules: "/data/deck-rules.json", snow: "/data/snow.json" })
 the Ontario Building Code, each cited beside the check that uses it. Outside Ontario these checks are
 wrong until you replace them with your own jurisdiction's figures.
 
+## The widget
+
+`widget/embed.js` is a drop-in loader: one script tag frames a widget host's `/quote` tools and
+resizes to a plain integer height posted back from that same origin, nothing else crosses the
+frame boundary. It has no build step and no dependencies, same as the engines above.
+
+```html
+<div data-arrowmem-widget></div>
+<script src="https://widget.example.com/embed.js" async></script>
+```
+
+See `widget/CONTRACT.md` for the full contract: the iframe attributes, the sandbox string and why
+each flag is there, the height message and its origin rules in both directions, the site owner's
+`embedOrigins` allow-list, and what stays closed (the framed page, the payment path, the chat
+assistant, the admin).
+
 ## Sources
 
 The reference site's tables and checks were built from, and are cited to:
@@ -65,7 +81,7 @@ A figure in any of these belongs to its publisher. Read the source, not this lis
 ## Tests
 
 ```sh
-node --test src/builders.test.js src/guard.test.js src/window-sizing.test.js
+node --test src/builders.test.js src/guard.test.js src/window-sizing.test.js widget/embed.test.js
 ```
 
 `builders.test.js` runs the deck engine and the drawings on an invented table built inside the
